@@ -57,7 +57,7 @@ app.route("/files/:uuid")
         }
 
         CSVToJSON(file).then((records) => {
-            res.status(200).json(records.slice(3)).end()
+            res.status(200).json(records.map(rec => ({key: rec.id, ...rec})).slice(3)).end()
         }).catch(next)
     })
 
@@ -115,48 +115,69 @@ app.get("/", function (_, res) {
 
 
 function toJSON({uuid, filename, size}) {
-    return {uuid, filename, size}
+    return {uuid, filename, size, key:uuid}
 }
 
-app.post("/download", (req,res) => {
+app.post("/download", (req,res,next) => {
     const file_path = path.join(__dirname, "template.xlsm")
-    const body = req.body
-    console.log(body)
-    if(!(req.body)) res.status(401).end()
+    const {keys, uuid} = req.body
+    if(!keys) res.status(401).end()
     XlsxPopulate.fromFileAsync(file_path)
     .then(workbook => {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        let mm = today.getMonth() + 1; 
-        let dd = today.getDate();
 
-        if (dd < 10) dd = '0' + dd;
-        if (mm < 10) mm = '0' + mm;
+        const file = files.find(f => f.uuid === uuid)
+        if(!file) {
+            next(new Error("File not found"))
+        }
 
-        const formattedToday = dd + '/' + mm + '/' + yyyy; 
-
-        workbook.sheet("Datos_Comunes").cell("F21").value(formattedToday)
-        workbook.sheet("Datos_Comunes").cell("D21").value("Barcelone")
-
-
-        workbook.sheet("Datos_Comunes").cell("C11").value("cosel de cent")
-
-        workbook.sheet("Datos_Comunes").cell("E11").value("42")
-        workbook.sheet("Datos_Comunes").cell("E11").value("42")
+        CSVToJSON(file).then((records) => {
+            const recs = records.filter(rec => keys.includes(rec.id))
+            console.log(recs)
+            let i = 14
+            for(const rec of recs) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                let mm = today.getMonth() + 1; 
+                let dd = today.getDate();
         
-        const fecha = new Date(body.FechaFin)
-        const my = (fecha.getMonth()+1) + '-' + fecha.getFullYear()
-        workbook.sheet("EXPEDICION").cell("F14").value(my)
-        workbook.sheet("EXPEDICION").cell("G14").value(my)
-        workbook.sheet("EXPEDICION").cell("D14").value(body.CIL)
-        workbook.sheet("EXPEDICION").cell("A14").value(body.CIF)
+                if (dd < 10) dd = '0' + dd;
+                if (mm < 10) mm = '0' + mm;
+        
+                const formattedToday = dd + '/' + mm + '/' + yyyy; 
+                
+                workbook.sheet("Datos_Comunes").cell("D21").value("Barcelone")
+                workbook.sheet("Datos_Comunes").cell("F21").value(formattedToday)
+        
+                workbook.sheet("Datos_Comunes").cell("E11").value("42")
+                
+                workbook.sheet("Datos_Comunes").cell("C11").value("cosel de cent")
+                workbook.sheet("Datos_Comunes").cell("G11").value("08014")
+                workbook.sheet("Datos_Comunes").cell("H11").value("Barcelona")
+                workbook.sheet("Datos_Comunes").cell("I11").value("Barcelona")
+                workbook.sheet("Datos_Comunes").cell("J11").value("Espana")
+                workbook.sheet("Datos_Comunes").cell("K11").value("932289972")
+                workbook.sheet("Datos_Comunes").cell("L11").value("contratacionsolar@nexusenergia.com")
+                
+                const fecha = new Date(rec.FechaFin)
+                const my = (fecha.getMonth()+1) + '-' + fecha.getFullYear()
+                workbook.sheet("EXPEDICION").cell('A'+i).value(rec.CIF)
+                workbook.sheet("EXPEDICION").cell("B"+i).value(rec.RazonSocial)
+                workbook.sheet("EXPEDICION").cell("C"+i).value(rec.CodigoPlanta)
+                workbook.sheet("EXPEDICION").cell("D"+i).value(rec.CIL)
+        
+                workbook.sheet("EXPEDICION").cell("F"+i).value(my)
+                workbook.sheet("EXPEDICION").cell("G"+i).value(my)
+                i++
+            }
 
-        workbook.toFileAsync("./out.xlsm");
-        workbook.outputAsync({
-            type: "nodebuffer"
-        }).then((buf) => {
-            res.contentType("application/vnd.ms-excel.sheet.macroEnabled.12").send(buf)
-        })
+            workbook.outputAsync({
+                type: "nodebuffer"
+            }).then((buf) => {
+                res.contentType("application/vnd.ms-excel.sheet.macroEnabled.12").send(buf)
+            })
+
+        }).catch(next)
+
     });
 
 
