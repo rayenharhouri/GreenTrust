@@ -11,7 +11,7 @@ const { Dragger } = Upload
 const props: UploadProps = {
     name: 'table',
     multiple: false,
-    accept: '.csv',
+    accept: '.xlsx',
     action: 'http://localhost:3000/files',
     showUploadList: false
 };
