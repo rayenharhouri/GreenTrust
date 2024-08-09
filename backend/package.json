@@ -16,6 +16,7 @@
     "csv-parse": "^5.5.6",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7",
     "xlsx": "^0.18.5",
     "xlsx-populate": "^1.21.0"
   },
