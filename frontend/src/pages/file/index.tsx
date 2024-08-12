@@ -154,7 +154,7 @@ function UploadPage() {
         }
       }).then( res => res.blob() ).then( blob => {
         var file = window.URL.createObjectURL(blob);
-        download(uuid + ".xlsm", file)
+        download(Date.now() + ".xlsm", file)
         setLoading(false);
       });
     };
@@ -280,12 +280,12 @@ function UploadPage() {
               }
             }).then( res => res.blob() ).then( blob => {
               var file = window.URL.createObjectURL(blob);
-              window.location.assign(file);
+              download(Date.now() + ".xlsm", file)
             });
           }}/>;
         },
       }
-    ];  
+    ];    
 
     return <Flex gap="middle" vertical>
     <Flex align="center" gap="middle">
