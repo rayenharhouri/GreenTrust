@@ -10,13 +10,19 @@ import {
   createBrowserRouter,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import HomePage from './pages/home';
 
 const queryClient = new QueryClient()
-
 
 const router = createBrowserRouter([
   {
     path: "/",
+    element: (
+      <HomePage />
+    ),
+  },
+  {
+    path: "/upload",
     element: (
       <UploadPage />
     ),
