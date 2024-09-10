@@ -5,7 +5,8 @@ function HomePage() {
     const navigate = useNavigate();
 
     return (
-        <div className="home-page">
+        <>
+        <div className="upload-page">
             {/* Header with button aligned to the right */}
             <header className="header">
                 <h1>GreenTrust</h1>
@@ -37,6 +38,9 @@ function HomePage() {
                     </div>
                 </div>
 
+                {/* Divider */}
+
+                
 
                 {/* About Section */}
                 <section className="about-section">
@@ -48,6 +52,7 @@ function HomePage() {
 
             </section>
         </div>
+        </>
     );
 }
 
