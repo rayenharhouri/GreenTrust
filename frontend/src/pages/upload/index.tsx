@@ -5,6 +5,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 const { Dragger } = Upload
+import { Aptos } from "@aptos-labs/ts-sdk";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+
+const aptos = new Aptos();
 
 
 
@@ -22,6 +26,8 @@ const pageStyles: React.CSSProperties = {
 }
 
 function UploadPage() {
+    const { account } = useWallet();
+    console.log(account)
     const queryClient = useQueryClient()
     const navigate = useNavigate();
     const  { isPending, isError, data, error } = useQuery<FileType[]>({ 
