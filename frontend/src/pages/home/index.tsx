@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router";
 import "./HomePage.css";
+import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
+import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
+import {Col} from "antd";
 
 function HomePage() {
     const navigate = useNavigate();
@@ -10,7 +13,9 @@ function HomePage() {
             {/* Header with button aligned to the right */}
             <header className="header">
                 <h1>GreenTrust</h1>
-                <button className="header-button" onClick={() => {}}>Connect Wallet</button>
+                <Col span={12} style={{ textAlign: "right", paddingRight: "200px" }}>
+                    <WalletSelector />
+                </Col>
             </header>
 
             {/* Connect Section */}
