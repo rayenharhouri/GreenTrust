@@ -8,6 +8,7 @@ const CSV = require("csv-parse");
 const sqlite3 = require('sqlite3').verbose();
 const XlsxPopulate = require('xlsx-populate');
 const XLSX = require("xlsx");
+const axios = require('axios');
 
 // the unbreakable filter 🤪
 const filter = function (_, file, cb) {
@@ -92,7 +93,7 @@ app.route("/files")
         const uuid = crypto.randomUUID()
         const file = { uuid, filename: req.file.originalname, size: req.file.size, table_id: makeid(10) }
         const workbook = XLSX.read(req.file.buffer);
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets["gdos enero-junio"]);
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets["Hoja1"],{range: 2});
         const filter = XLSX.utils.sheet_to_json(workbook.Sheets["filtros"]).map(item => Object.values(item));
 
 
@@ -100,7 +101,7 @@ app.route("/files")
             if (err) throw err;
             const stmt = db.prepare(`INSERT INTO ${file.table_id}  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const row of json.map(e => ({ ...e, FechaInicio: XlsxPopulate.numberToDate(e.FechaInicio).getTime(), FechaFin: XlsxPopulate.numberToDate(e.FechaFin).getTime() }))) {
-                stmt.run(Object.values(row).slice(0, -1));
+                stmt.run(Object.values(row).slice(0, -2));
             }
             stmt.finalize();
             db.run(createfilterTableBuilder(file.table_id), (err) => {
@@ -110,7 +111,7 @@ app.route("/files")
                 filtersInsertStmt.run(filterRow);
                 console.log(filterRow);
             }
-                //filtersInsertStmt.finalize();
+                filtersInsertStmt.finalize();
             });
             
             files[uuid] = file
@@ -134,22 +135,7 @@ function makeid(length) {
     return result;
 }
 
-// app.route("/files/:uuid")
-//     .get(function (req, res, next) {
-//         const file = files[req.params.uuid]
-//         if (!file) {
-//             next(new Error("File not found"))
-//         }
-//         db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
-//             if (err) throw err;
-//             console.log('Filter Table Data:', filterRows);
-//         });
-//         db.all(`select * from ${file.table_id}`, (err, rows) => {
-//             if (err) throw err;
-            
-//             res.status(200).json(rows.map(r => ({ ...r, key: r.id }))).end()
-//         })
-//     })
+
 app.route("/files/:uuid")
     .get(function (req, res, next) {
         const file = files[req.params.uuid];
@@ -161,32 +147,39 @@ app.route("/files/:uuid")
         db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
             if (err) throw err;
 
-            console.log('Filter Table Data:', filterRows);
-
             // Fetch file data from the file table
             db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
                 if (err) throw err;
 
                 // Apply filtering logic: only keep rows that match filters
-                if(filterRows.length != 0) {
-                const filteredData = rows.filter(row => 
-                    filterRows.some(filter =>
-                        filter.TipoCesion === row.TipoCesion && filter.Tecnologia === row.Tecnologia
-                    )
-                );
-            
+                const filteredData = filterRows.map(filter => {
+                    return {
+                        filter: {
+                            TipoCesion: filter.TipoCesion,
+                            Tecnologia: filter.Tecnologia,
+                        },
+                        data: rows.filter(row =>
+                            row.TipoCesion === filter.TipoCesion && row.Tecnologia === filter.Tecnologia
+                        ).map(r => ({ ...r, key: r.id }))
+                    };
+                });
 
-                // Return the filtered data
-                res.status(200).json(filteredData.map(r => ({ ...r, key: r.id }))).end();
-            } else {
-                res.status(200).json(rows.map(r => ({ ...r, key: r.id }))).end();
-            }
+                console.log('Filtered Data:', JSON.stringify(filteredData, null, 2));
+
+                // Send the filtered data to the Flask server
+                axios.post('http://localhost:5000/receive-data', { filteredData })
+                    .then(response => {
+                        console.log('Data sent to Flask server:', response.data);
+                    })
+                    .catch(error => {
+                        console.error('Error sending data to Flask server:', error);
+                    });
+
+                // Return the structured data
+                res.status(200).json({ filteredData }).end();
             });
         });
     });
-
-
-
 app.get("/", function (_, res) {
     res.sendFile(path.join(__dirname, "views", "index.html"))
 })
