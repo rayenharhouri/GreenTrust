@@ -82,7 +82,8 @@ function createfilterTableBuilder(uuid) {
     return `
     CREATE TABLE ${uuid}_filter (
     'TipoCesion' TEXT,
-    'Tecnologia' TEXT
+    'Tecnologia' TEXT,
+    'añomes' TEXT
 ); `
 }
 app.route("/files")
@@ -106,8 +107,8 @@ app.route("/files")
             stmt.finalize();
             db.run(createfilterTableBuilder(file.table_id), (err) => {
                 if (err) throw err;
-                const filtersInsertStmt = db.prepare(`INSERT INTO ${file.table_id}_filter (TipoCesion, Tecnologia) VALUES (?, ?)`);
-                for (const filterRow of filter.map(item => Object.values(item).slice(0, -1))) {
+                const filtersInsertStmt = db.prepare(`INSERT INTO ${file.table_id}_filter (TipoCesion, Tecnologia, añomes) VALUES (?, ?, ?)`);
+                for (const filterRow of filter.map(item => Object.values(item))) {
                 filtersInsertStmt.run(filterRow);
                 console.log(filterRow);
             }
@@ -136,50 +137,121 @@ function makeid(length) {
 }
 
 
-app.route("/files/:uuid")
-    .get(function (req, res, next) {
-        const file = files[req.params.uuid];
-        if (!file) {
-            return next(new Error("File not found"));
-        }
+// app.route("/files/:uuid")
+//     .get(function (req, res, next) {
+//         const file = files[req.params.uuid];
+//         if (!file) {
+//             return next(new Error("File not found"));
+//         }
 
-        // Fetch filter data from the filters table
-        db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
+//         // Fetch filter data from the filters table
+//         db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
+//             if (err) throw err;
+
+//             // Fetch file data from the file table
+//             db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
+//                 if (err) throw err;
+
+//                 // Apply filtering logic: only keep rows that match filters
+//                 const filteredData = filterRows.map(filter => {
+//                     return {
+//                         filter: {
+//                             TipoCesion: filter.TipoCesion,
+//                             Tecnologia: filter.Tecnologia,
+//                         },
+//                         data: rows.filter(row =>
+//                             row.TipoCesion === filter.TipoCesion && row.Tecnologia === filter.Tecnologia
+//                         ).map(r => ({ ...r, key: r.id }))
+//                     };
+//                 });
+
+//                 console.log('Filtered Data:', JSON.stringify(filteredData, null, 2));
+
+//                 // Send the filtered data to the Flask server
+//                 axios.post('http://localhost:5000/receive-data', { filteredData })
+//                     .then(response => {
+//                         console.log('Data sent to Flask server:', response.data);
+//                     })
+//                     .catch(error => {
+//                         console.error('Error sending data to Flask server:', error);
+//                     });
+
+//                 // Return the structured data
+//                 res.status(200).json({ filteredData }).end();
+//             });
+//         });
+//     });
+
+app.route("/files/:uuid")
+.get(function (req, res, next) {
+    const file = files[req.params.uuid];
+    if (!file) {
+        return next(new Error("File not found"));
+    }
+
+    // Fetch filter data from the filters table
+    db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
+        if (err) throw err;
+
+        // Fetch file data from the file table
+        db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
             if (err) throw err;
 
-            // Fetch file data from the file table
-            db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
-                if (err) throw err;
+            // Helper function to determine the quarter from a date string in format "MM/DD/YYYY"
+            function getQuarterFromDate(month) {
+                if (month >= 1 && month <= 3) return "Q1";
+                else if (month >= 4 && month <= 6) return "Q2";
+                else if (month >= 7 && month <= 9) return "Q3";
+                else return "Q4";
+            }
 
-                // Apply filtering logic: only keep rows that match filters
-                const filteredData = filterRows.map(filter => {
-                    return {
-                        filter: {
-                            TipoCesion: filter.TipoCesion,
-                            Tecnologia: filter.Tecnologia,
-                        },
-                        data: rows.filter(row =>
-                            row.TipoCesion === filter.TipoCesion && row.Tecnologia === filter.Tecnologia
-                        ).map(r => ({ ...r, key: r.id }))
-                    };
+            // Function to check if a date range matches a given quarter
+            function isDateInQuarter(fechaInicio, fechaFin, filterQuarter,test) {
+                const startQuarter = getQuarterFromDate(fechaInicio.getMonth() +1);
+                const endQuarter = getQuarterFromDate(fechaFin.getMonth() +1);                
+                // Check if any of the start or end quarters overlap with the filter quarter
+                return (startQuarter === filterQuarter || endQuarter === filterQuarter);
+            }
+
+            // Apply filtering logic: only keep rows that match filters, including the "añomes" (quarter) filter
+            const filteredData = filterRows.map(filter => {
+                return {
+                    filter: {
+                        TipoCesion: filter.TipoCesion,
+                        Tecnologia: filter.Tecnologia,
+                        "añomes": filter["añomes"]
+                    },
+                    data: rows.filter(row => {
+                        console.log('Row:', new Date(row.fechaInicio * 1).getMonth(), new Date(row.fechaFin * 1).getMonth(), row.CIF);
+                        return (
+                            row.TipoCesion === filter.TipoCesion &&
+                            row.Tecnologia === filter.Tecnologia &&
+                            isDateInQuarter(new Date(row.FechaInicio * 1),new Date(row.FechaFin * 1 ) , filter["añomes"],row.CIF)
+                        );
+                    }).map(r => ({ ...r, key: r.id }))
+                };
+            });
+
+            console.log('Filtered Data:', JSON.stringify(filteredData, null, 2));
+
+            // Send the filtered data to the Flask server
+            axios.post('http://localhost:5000/receive-data', { filteredData })
+                .then(response => {
+                    console.log('Data sent to Flask server:', response.data);
+                })
+                .catch(error => {
+                    console.error('Error sending data to Flask server:', error);
                 });
 
-                console.log('Filtered Data:', JSON.stringify(filteredData, null, 2));
-
-                // Send the filtered data to the Flask server
-                axios.post('http://localhost:5000/receive-data', { filteredData })
-                    .then(response => {
-                        console.log('Data sent to Flask server:', response.data);
-                    })
-                    .catch(error => {
-                        console.error('Error sending data to Flask server:', error);
-                    });
-
-                // Return the structured data
-                res.status(200).json({ filteredData }).end();
-            });
+            // Return the structured data
+            res.status(200).json({ filteredData }).end();
         });
     });
+});
+
+    
+
+    
 app.get("/", function (_, res) {
     res.sendFile(path.join(__dirname, "views", "index.html"))
 })
