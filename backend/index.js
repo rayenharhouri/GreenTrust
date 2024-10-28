@@ -94,7 +94,7 @@ app.route("/files")
         const uuid = crypto.randomUUID()
         const file = { uuid, filename: req.file.originalname, size: req.file.size, table_id: makeid(10) }
         const workbook = XLSX.read(req.file.buffer);
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets["Hoja1"],{range: 2});
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets["gdos enero-junio"]);
         const filter = XLSX.utils.sheet_to_json(workbook.Sheets["filtros"]).map(item => Object.values(item));
 
 
@@ -102,7 +102,7 @@ app.route("/files")
             if (err) throw err;
             const stmt = db.prepare(`INSERT INTO ${file.table_id}  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const row of json.map(e => ({ ...e, FechaInicio: XlsxPopulate.numberToDate(e.FechaInicio).getTime(), FechaFin: XlsxPopulate.numberToDate(e.FechaFin).getTime() }))) {
-                stmt.run(Object.values(row).slice(0, -2));
+                stmt.run(Object.values(row));
             }
             stmt.finalize();
             db.run(createfilterTableBuilder(file.table_id), (err) => {
@@ -196,7 +196,6 @@ app.route("/files/:uuid")
         // Fetch file data from the file table
         db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
             if (err) throw err;
-
             // Helper function to determine the quarter from a date string in format "MM/DD/YYYY"
             function getQuarterFromDate(month) {
                 if (month >= 1 && month <= 3) return "Q1";
@@ -210,7 +209,7 @@ app.route("/files/:uuid")
                 const startQuarter = getQuarterFromDate(fechaInicio.getMonth() +1);
                 const endQuarter = getQuarterFromDate(fechaFin.getMonth() +1);                
                 // Check if any of the start or end quarters overlap with the filter quarter
-                return (startQuarter === filterQuarter || endQuarter === filterQuarter);
+                return (startQuarter === filterQuarter && endQuarter === filterQuarter);
             }
 
             // Apply filtering logic: only keep rows that match filters, including the "añomes" (quarter) filter
@@ -222,7 +221,7 @@ app.route("/files/:uuid")
                         "añomes": filter["añomes"]
                     },
                     data: rows.filter(row => {
-                        console.log('Row:', new Date(row.fechaInicio * 1).getMonth(), new Date(row.fechaFin * 1).getMonth(), row.CIF);
+                        console.log('row',row);
                         return (
                             row.TipoCesion === filter.TipoCesion &&
                             row.Tecnologia === filter.Tecnologia &&
