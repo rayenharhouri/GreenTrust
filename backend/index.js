@@ -4,7 +4,6 @@ const multer = require('multer')
 const path = require("path")
 const crypto = require("crypto");
 const cors = require('cors');
-const CSV = require("csv-parse");
 const sqlite3 = require('sqlite3').verbose();
 const XlsxPopulate = require('xlsx-populate');
 const XLSX = require("xlsx");
@@ -19,14 +18,13 @@ const filter = function (_, file, cb) {
     }
 }
 
-// for MVP purposes, file mapping will be stored in memory
+//file mapping will be stored in memory
 let files = {}
 const db = new sqlite3.Database(':memory:');
 const storage = multer.memoryStorage()
 
 const upload = multer({
     storage,
-    // dest: path.join(__dirname, "uploads/"),
     fileFilter: filter,
     limits: {
         fieldSize: 10 * 1024 * 1024,
@@ -39,25 +37,7 @@ app.use(compression())
 app.use(cors())
 app.use(express.json())
 
-/*{
-    id: 855126,
-    CIF: 'B92478296',
-    RazonSocial: 'Angulo Anaya S.L.',
-    CodigoPlanta: 'ANGULOANAYA',
-    CIL: 'ES0031000000400038QB1F001',
-    'Año': 2024,
-    Mes: 1,
-    FechaInicio: 45292,
-    FechaFin: 45351,
-    GarantiaSolicitada: 1,
-    TipoCesion: 'Ced_NX',
-    idContratoGDO: 21491,
-    idDatosGestion: 572127,
-    Potencia: 0.15,
-    Tecnologia: 'HIDRAULICA',
-    NombreFicheroExcel: 'Expedicion_638557050605449585_01',
-    ID_Datatable: 855126
-}*/
+
 function createTableBuilder(uuid) {
     return `CREATE TABLE ${uuid} (
         'id' TEXT,
@@ -95,6 +75,15 @@ app.route("/files")
         const file = { uuid, filename: req.file.originalname, size: req.file.size, table_id: makeid(10) }
         const workbook = XLSX.read(req.file.buffer);
         const json = XLSX.utils.sheet_to_json(workbook.Sheets["gdos enero-junio"]);
+        json.forEach((x) => {
+            delete x.NumeroRegistro 
+            delete x.Estado 
+            delete x.FechaPresentacion 
+            delete x.ExpedidaAnotada 
+            delete x.ExpedidaAnotada 
+            delete x.ExpedidaTramite 
+            delete x.NombreFicheroExcel
+        });
         const filter = XLSX.utils.sheet_to_json(workbook.Sheets["filtros"]).map(item => Object.values(item));
 
 
@@ -117,8 +106,8 @@ app.route("/files")
             
             files[uuid] = file
             const response = {
-                file: toJSON(file), // Assuming `toJSON(file)` processes the file data
-                filters: filter,   // The filters array
+                file: toJSON(file), 
+                filters: filter,
             };
             res.status(201).json(response).end()
         })
@@ -135,52 +124,6 @@ function makeid(length) {
     }
     return result;
 }
-
-
-// app.route("/files/:uuid")
-//     .get(function (req, res, next) {
-//         const file = files[req.params.uuid];
-//         if (!file) {
-//             return next(new Error("File not found"));
-//         }
-
-//         // Fetch filter data from the filters table
-//         db.all(`SELECT * FROM ${file.table_id}_filter`, (err, filterRows) => {
-//             if (err) throw err;
-
-//             // Fetch file data from the file table
-//             db.all(`SELECT * FROM ${file.table_id}`, (err, rows) => {
-//                 if (err) throw err;
-
-//                 // Apply filtering logic: only keep rows that match filters
-//                 const filteredData = filterRows.map(filter => {
-//                     return {
-//                         filter: {
-//                             TipoCesion: filter.TipoCesion,
-//                             Tecnologia: filter.Tecnologia,
-//                         },
-//                         data: rows.filter(row =>
-//                             row.TipoCesion === filter.TipoCesion && row.Tecnologia === filter.Tecnologia
-//                         ).map(r => ({ ...r, key: r.id }))
-//                     };
-//                 });
-
-//                 console.log('Filtered Data:', JSON.stringify(filteredData, null, 2));
-
-//                 // Send the filtered data to the Flask server
-//                 axios.post('http://localhost:5000/receive-data', { filteredData })
-//                     .then(response => {
-//                         console.log('Data sent to Flask server:', response.data);
-//                     })
-//                     .catch(error => {
-//                         console.error('Error sending data to Flask server:', error);
-//                     });
-
-//                 // Return the structured data
-//                 res.status(200).json({ filteredData }).end();
-//             });
-//         });
-//     });
 
 app.route("/files/:uuid")
 .get(function (req, res, next) {

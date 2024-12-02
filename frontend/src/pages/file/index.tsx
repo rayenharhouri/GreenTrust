@@ -4,9 +4,6 @@ import { useState } from "react";
 import lightencyLogo from '../../assets/lightency.png';
 
 
-
-
-
 function UploadPage() {
     const { uuid } = useParams();
     const [loading, setLoading] = useState(false);
@@ -16,7 +13,13 @@ function UploadPage() {
     } })
 
     if(isPending) {
-      return null;
+      return (
+        <div style={styles.container}>
+            <div style={styles.horizontal}>
+                <img src={lightencyLogo} alt="Lightency Logo" style={styles.image} />  <p>Processing files...</p>
+            </div>
+        </div>
+    );
     }
     return (
       <div style={styles.container}>
@@ -41,8 +44,8 @@ const styles = {
       justifyContent: 'center',
   } as React.CSSProperties,
   image: {
-      width: '150px', // Adjust the size if needed
-      marginRight: '20px', // Space between image and text
+      width: '150px', 
+      marginRight: '20px',
   } as React.CSSProperties,
 };
 

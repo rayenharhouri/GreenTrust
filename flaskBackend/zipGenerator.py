@@ -108,7 +108,7 @@ def fill_excel_from_data(filtered_data, template_path, output_path):
             fecha_inicio = datetime.fromtimestamp(float(entry['FechaInicio']) / 1000)
             fecha_fin = datetime.fromtimestamp(float(entry['FechaFin']) / 1000)
 
-            # Fill the data in the respective columns (you can adjust column letters as per your template)
+            # Fill the data in the respective columns
             sheet_expedicion[f'A{start_row}'].value = entry['CIF']
             sheet_expedicion[f'B{start_row}'].value = entry['RazonSocial']
             sheet_expedicion[f'C{start_row}'].value = entry['CodigoPlanta']
@@ -141,8 +141,7 @@ def fill_excel_from_data(filtered_data, template_path, output_path):
 @app.route('/receive-data', methods=['POST'])
 def receive_data():
     data = request.json
-    #print('Received Data (Before Filtering):', data)
-    
+
     # Remove duplicates
     filtered_data = remove_duplicates(data.get('filteredData', []))
     

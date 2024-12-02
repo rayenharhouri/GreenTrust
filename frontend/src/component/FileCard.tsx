@@ -1,4 +1,4 @@
-import { EditOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { EditOutlined, DownloadOutlined } from '@ant-design/icons';
 import { Card } from 'antd';
 
 const { Meta } = Card;
@@ -19,13 +19,13 @@ const FileCard = ({file, onEdit}: {file: FileType, onEdit: React.MouseEventHandl
       />
     }
     actions={[
-      <EditOutlined key="edit" onClick={onEdit}/>,
-      <EllipsisOutlined key="ellipsis" />,
+      <DownloadOutlined key="edit" onClick={onEdit}/>,
+     
     ]}
   >
     <Meta
       title={file.filename}
-      description="This is the description"
+      description="Click to download"
     />
   </Card>
 );
